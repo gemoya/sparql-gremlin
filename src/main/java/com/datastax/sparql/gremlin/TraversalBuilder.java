@@ -31,19 +31,34 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
  * @author Daniel Kuppitz (http://gremlin.guru)
  */
 class TraversalBuilder {
-
+    // Este metodo transforma la consulta SPARQL utilizando la ontologia
+    // vocabulario que se relaciona con los componentes del traversal en gremlin
+    // por cada triple toma el predicado y este define si se atribuye a
+    // un vertice o una arista del grafo tinkerpop
     public static GraphTraversal<?, ?> transform(final Triple triple) {
+        //System.out.println("\nEn TraversalBuilder");
         final GraphTraversal<Vertex, ?> matchTraversal = __.as(triple.getSubject().getName());
+        //System.out.println("Sujeto: " + triple.getSubject().getName());
         final Node predicate = triple.getPredicate();
+        //System.out.println("Predicado: " + triple.getPredicate());
         final String uri = predicate.getURI();
+        //System.out.println("URI: " + uri);
         final String uriValue = Prefixes.getURIValue(uri);
+        //System.out.println("URIValue: " + uriValue);
         final String prefix = Prefixes.getPrefix(uri);
+        //System.out.println("PREFIX: " + prefix);
+        //System.out.println("Object: " + triple.getObject());
         switch (prefix) {
             case "edge":
+                //System.out.println("case: prefix = " + prefix);
+                //System.out.println("out("+uriValue+").as("+triple.getObject().getName()+")");
+                // moverse a un vertex al cual se pueda llegar con el valor del edge como uriValue y se renombra como el objeto (variable)
                 return matchTraversal.out(uriValue).as(triple.getObject().getName());
             case "property":
+                //System.out.println("case: prefix = " + prefix);
                 return matchProperty(matchTraversal, uriValue, PropertyType.PROPERTY, triple.getObject());
             case "value":
+                //System.out.println("case: prefix = " + prefix);
                 return matchProperty(matchTraversal, uriValue, PropertyType.VALUE, triple.getObject());
             default:
                 throw new IllegalStateException(String.format("Unexpected predicate: %s", predicate));
@@ -52,6 +67,14 @@ class TraversalBuilder {
 
     private static GraphTraversal<?, ?> matchProperty(final GraphTraversal<?, ?> traversal, final String propertyName,
                                                       final PropertyType type, final Node object) {
+        
+        // para saber que significa concreto
+        if(object.isConcrete()) {
+            System.out.println("Es CONCRETO");
+        } else {
+            System.out.println("NO es concreto");
+        }
+        
         switch (propertyName) {
             case "id":
                 return object.isConcrete()

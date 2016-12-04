@@ -48,13 +48,15 @@ class ConsoleCompiler {
 
     public static void main(final String[] args) throws IOException {
 
+        // opciones para los datos de entrada y creacion de grafo
         final Options options = new Options();
         options.addOption("f", "file", true, "a file that contains a SPARQL query");
         options.addOption("g", "graph", true, "the graph that's used to execute the query [classic|modern|crew|kryo file]");
         // TODO: add an OLAP option (perhaps: "--olap spark"?)
-
+        System.out.println("tomando file como input\n");
         final CommandLineParser parser = new DefaultParser();
         final CommandLine commandLine;
+        
 
         try {
             commandLine = parser.parse(options, args);
@@ -69,23 +71,45 @@ class ConsoleCompiler {
                 : System.in;
         final BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
         final StringBuilder queryBuilder = new StringBuilder();
+        // segunda query
+        final StringBuilder queryBuilder2 = new StringBuilder();
 
         if (!reader.ready()) {
             printHelp(1);
         }
 
+        System.out.println("leyendo archivo\n");
         String line;
+        String un1 = "UNION";
+        String un2 = "union";
+        // si hay union entonces no seguir con la query
         while (null != (line = reader.readLine())) {
-            queryBuilder.append(System.lineSeparator()).append(line);
+            if (line.contains(un1) || line.contains(un2)){
+                System.out.println("hay union");
+                
+                //borramos ultimo }
+                line = line.substring(0,line.length() - 2);
+                //borramos UNION {
+                queryBuilder2.append(System.lineSeparator()).append(line.replace("UNION {", ""));
+            } else { 
+                queryBuilder.append(System.lineSeparator()).append(line);
+                //System.out.println("queryBuilder en el while: " + queryBuilder.toString());
+            }
+            
         }
 
+        
         final String queryString = queryBuilder.toString();
         final Graph graph;
-
+        // segundo queryString y graph
+        final String queryString2 = queryBuilder2.toString();
+        
+        // System.out.println("queryString: " + queryString);
+        // System.out.println("queryString2: " + queryString2);
         if (commandLine.hasOption("graph")) {
             switch (commandLine.getOptionValue("graph").toLowerCase()) {
-                case "classic":
-                    graph = TinkerFactory.createClassic();
+                case "classic": 
+                   graph = TinkerFactory.createClassic();
                     break;
                 case "modern":
                     graph = TinkerFactory.createModern();
@@ -101,16 +125,29 @@ class ConsoleCompiler {
         } else {
             graph = TinkerFactory.createModern();
         }
-
+        
+        System.out.println("Construyendo traversal\n");
         final Traversal<Vertex, ?> traversal = SparqlToGremlinCompiler.convertToGremlinTraversal(graph, queryString);
-
+        
         printWithHeadline("SPARQL Query", queryString);
         printWithHeadline("Traversal (prior execution)", traversal);
         printWithHeadline("Result", String.join(System.lineSeparator(),
                 traversal.toStream().map(Object::toString).collect(Collectors.toList())));
         printWithHeadline("Traversal (after execution)", traversal);
+        
+        System.out.println("Segundo Traversal");
+        final Traversal<Vertex, ?> traversal2 = SparqlToGremlinCompiler.convertToGremlinTraversal(graph, queryString2);
+        printWithHeadline("SPARQL Query", queryString2);
+        printWithHeadline("Traversal (prior execution)", traversal2);
+        printWithHeadline("Result", String.join(System.lineSeparator(),
+                traversal2.toStream().map(Object::toString).collect(Collectors.toList())));
+        printWithHeadline("Traversal (after execution)", traversal2);
+        
+        
+        
     }
 
+    // funcion de 
     private static void printHelp(final int exitCode) throws IOException {
         final Map<String, String> env = System.getenv();
         final String command = env.containsKey("LAST_COMMAND") ? env.get("LAST_COMMAND") : "sparql-gremlin.sh";
